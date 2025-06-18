@@ -3,7 +3,7 @@ from PIL import Image
 import torch
 
 # Load model & processor
-model_id = "Salesforce/blip-image-captioning-base"
+model_id = "Salesforce/blip-image-captioning-large"
 processor = BlipProcessor.from_pretrained(model_id)
 model = BlipForConditionalGeneration.from_pretrained(model_id)
 
