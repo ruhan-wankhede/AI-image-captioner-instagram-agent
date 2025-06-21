@@ -49,7 +49,7 @@ class Workflow:
         graph.add_conditional_edges(
             "human_decision",
             lambda state: state.decision,
-            {"edit": "edit", "regenerate": "regenerate", "upload": "upload"}
+            {"edit": "edit", "regenerate": "regenerate", "upload": "upload", "end": END}
         )
         graph.add_edge("edit", "upload")
         graph.add_edge("upload", END)
@@ -66,7 +66,6 @@ class Workflow:
             #get response as a list of 5 captions
             response = llm.invoke(messages)
             messages.append(AIMessage(content=f"Captions are: \n{response.captions}"))
-            print(response.captions)
             return {"captions": response.captions, "messages": messages}
         except Exception as e:
             print(e)
@@ -81,19 +80,18 @@ class Workflow:
         })
         return human_review
 
-    def _handle_human_input(self, next_state) -> Command:
-        tool_call = next_state.get("tool_calls", [{}])[0]
-        args = tool_call.get("args", {})
+    def _handle_human_input(self, state: dict) -> Command:
+        print("What would you like to do with these captions?")
+        print("Reply with:\n - The index of a caption (e.g. `0`, `1`)\n - `edit: <your caption>` to provide your own\n - `regen: <any specifications>` to regenerate options")
 
-        print("\n🚦 Human Review Required")
-        print("📝 Question:", args.get("question", ""))
-        print("📋 Instructions:", args.get("instructions", ""))
-
-        captions = args.get("captions", [])
+        captions = state["captions"]
         if captions:
             print("\n📷 Suggested Captions:")
             for idx, caption in enumerate(captions):
                 print(f"  [{idx}] {caption}")
+        else:
+            print("No Captions Generated, an error occurred.\n please try again later.")
+            return Command(resume={"decision": "end"})
 
         # Loop until valid input is given
         while True:
@@ -147,7 +145,6 @@ class Workflow:
     def run(self, raw_caption: str) -> State:
         initial_state = State(initial_caption=raw_caption)
         next_state = self.workflow.invoke(initial_state, config=self.thread_config)
-
         next_state = self.workflow.invoke(self._handle_human_input(next_state), config=self.thread_config)
 
         return State(**next_state)
