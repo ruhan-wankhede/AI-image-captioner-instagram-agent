@@ -16,4 +16,8 @@ class Prompts:
     def caption_user(raw_caption: str):
         return (f"Rewrite this caption for Instagram. Make it sound fun, casual, and human."
                 f"Provide 5 captions, feel free to use emojis and hashtags, but make sure that the hashtags and "
-                f"captions are not too cringey:\n\n {raw_caption}")
+                f"captions make sense:\n\n {raw_caption}")
+
+    @staticmethod
+    def regenerate_captions_user(specification: str):
+        return f"Generate 5 new captions remember -> {specification}"

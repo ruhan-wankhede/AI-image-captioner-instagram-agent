@@ -134,7 +134,17 @@ class Workflow:
         return Command(resume={"decision": action, "selected_caption": value})
 
     def _regenerate_captions_step(self, state: State) -> Dict[str, Any]:
-        pass
+        llm = self.llm.with_structured_output(CaptionList)
+        messages = state.messages
+        messages.append(HumanMessage(content=self.prompts.regenerate_captions_user(state.selected_caption)))
+
+        try:
+            #get response as a list of 5 captions
+            response = llm.invoke(messages)
+            return {"captions": response.captions, "messages": messages}
+        except Exception as e:
+            print(e)
+            return {"captions": [], "messages": []}
 
     def _edit_caption_step(self, state: State) -> Dict[str, Any]:
         pass
@@ -145,7 +155,8 @@ class Workflow:
     def run(self, raw_caption: str) -> State:
         initial_state = State(initial_caption=raw_caption)
         next_state = self.workflow.invoke(initial_state, config=self.thread_config)
-        next_state = self.workflow.invoke(self._handle_human_input(next_state), config=self.thread_config)
+        while "__interrupt__" in next_state:
+            next_state = self.workflow.invoke(self._handle_human_input(next_state), config=self.thread_config)
 
         return State(**next_state)
 
