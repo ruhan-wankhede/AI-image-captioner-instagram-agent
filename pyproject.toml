@@ -12,6 +12,7 @@ dependencies = [
     "pillow>=11.2.1",
     "pydantic>=2.11.7",
     "python-dotenv>=1.1.0",
+    "selenium>=4.33.0",
     "timm>=1.0.15",
     "torch>=2.7.1",
     "torchvision>=0.22.1",

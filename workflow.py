@@ -10,6 +10,13 @@ from langgraph.graph.message import add_messages
 from dotenv import load_dotenv
 from langgraph.types import Command, interrupt
 from langgraph.checkpoint.memory import MemorySaver
+import time
+import os
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.service import Service
+
 
 load_dotenv()
 
@@ -20,6 +27,7 @@ class State(BaseModel):
     messages: Annotated[list, add_messages] = []
     selected_caption: str = ""
     decision: str = ""
+    image_path: str = ""
 
 
 class CaptionList(BaseModel):
@@ -149,11 +157,80 @@ class Workflow:
     def _edit_caption_step(self, state: State) -> Dict[str, Any]:
         pass
 
+    def upload_to_instagram(self, username, password, image_path, caption):
+        # Setup
+        options = webdriver.ChromeOptions()
+        options.add_argument("--start-maximized")
+        service = Service(executable_path="chromedriver.exe")
+        driver = webdriver.Chrome(options=options, service=service)
+
+        try:
+            # 1. Go to Instagram
+            driver.get("https://www.instagram.com/accounts/login/")
+            time.sleep(5)
+
+            # 2. Login
+            driver.find_element(By.NAME, "username").send_keys(username)
+            driver.find_element(By.NAME, "password").send_keys(password)
+            driver.find_element(By.NAME, "password").send_keys(Keys.RETURN)
+            time.sleep(8)
+
+            # 3. Bypass "Save Your Login Info" if it shows
+            try:
+                not_now = driver.find_element(By.XPATH, "//button[contains(text(), 'Not Now')]")
+                not_now.click()
+                time.sleep(3)
+            except:
+                pass
+
+            # 4. Bypass notification popup
+            try:
+                not_now = driver.find_element(By.XPATH, "//button[contains(text(), 'Not Now')]")
+                not_now.click()
+                time.sleep(3)
+            except:
+                pass
+
+            # 5. Open upload from home (this only works in desktop view with file input)
+            upload_button = driver.find_element(By.CSS_SELECTOR, "svg[aria-label='New post']").find_element(By.XPATH,
+                                                                                                            "..")
+            upload_button.click()
+            time.sleep(2)
+
+            # 6. Upload file
+            file_input = driver.find_element(By.XPATH, "//input[@accept='image/jpeg,image/png']")
+            file_input.send_keys(os.path.abspath(image_path))
+            time.sleep(2)
+
+            # 7. Click Next
+            driver.find_element(By.XPATH, "//button[text()='Next']").click()
+            time.sleep(2)
+
+            # 8. Add caption
+            caption_area = driver.find_element(By.TAG_NAME, "textarea")
+            caption_area.send_keys(caption)
+            time.sleep(1)
+
+            # 9. Share post
+            driver.find_element(By.XPATH, "//button[text()='Share']").click()
+            time.sleep(5)
+
+            print("✅ Post uploaded successfully.")
+
+        except Exception as e:
+            print("❌ Error:", e)
+
+        finally:
+            driver.quit()
+
     def _upload_step(self, state: State) -> Dict[str, Any]:
-        pass
+        username = input("🔑 Enter your Instagram username: ")
+        password = input("🔐 Enter your Instagram password: ")
+        self.upload_to_instagram(username, password, state.image_path, state.selected_caption)
+
 
     def run(self, raw_caption: str) -> State:
-        initial_state = State(initial_caption=raw_caption)
+        initial_state = State(initial_caption=raw_caption, image_path="lebron.jpg")
         next_state = self.workflow.invoke(initial_state, config=self.thread_config)
         while "__interrupt__" in next_state:
             next_state = self.workflow.invoke(self._handle_human_input(next_state), config=self.thread_config)
