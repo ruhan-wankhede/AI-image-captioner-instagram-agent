@@ -1,6 +1,6 @@
 from typing import List, Dict, Any, Annotated, Literal
 
-from langchain_core.runnables import RunnableConfig
+from getpass import getpass
 from pydantic import BaseModel
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
@@ -43,7 +43,6 @@ class Workflow:
         self.thread_config = {"configurable": {"thread_id": "1"}}
 
     def _build_workflow(self):
-        # TODO: add instagram api call as a tool
         checkpointer = MemorySaver()
         graph = StateGraph(State)
         graph.add_node("generate_captions", self._generate_captions_step)
@@ -198,21 +197,33 @@ class Workflow:
             time.sleep(2)
 
             # 6. Upload file
-            file_input = driver.find_element(By.XPATH, "//input[@accept='image/jpeg,image/png']")
+            file_input = driver.find_element(By.XPATH, "//input[@type='file']")
             file_input.send_keys(os.path.abspath(image_path))
             time.sleep(2)
 
             # 7. Click Next
-            driver.find_element(By.XPATH, "//button[text()='Next']").click()
+            driver.find_element(By.XPATH, "//div[@role='button' and normalize-space()='Next']").click()
+            time.sleep(2)
+
+            driver.find_element(By.XPATH, "//div[@role='button' and normalize-space()='Next']").click()
             time.sleep(2)
 
             # 8. Add caption
-            caption_area = driver.find_element(By.TAG_NAME, "textarea")
-            caption_area.send_keys(caption)
-            time.sleep(1)
+            caption_area = driver.find_element(By.XPATH, "//div[@aria-label='Write a caption...']")
+            driver.execute_script("""
+                const captionDiv = arguments[0];
+                const text = arguments[1];
+
+                captionDiv.innerHTML = '';
+                const textNode = document.createTextNode(text);
+                captionDiv.appendChild(textNode);
+
+                captionDiv.dispatchEvent(new InputEvent('input', { bubbles: true }));
+            """, caption_area, caption)
+            time.sleep(2)
 
             # 9. Share post
-            driver.find_element(By.XPATH, "//button[text()='Share']").click()
+            driver.find_element(By.XPATH, "//div[@role='button' and normalize-space()='Share']").click()
             time.sleep(5)
 
             print("✅ Post uploaded successfully.")
@@ -220,17 +231,14 @@ class Workflow:
         except Exception as e:
             print("❌ Error:", e)
 
-        finally:
-            driver.quit()
-
     def _upload_step(self, state: State) -> Dict[str, Any]:
         username = input("🔑 Enter your Instagram username: ")
-        password = input("🔐 Enter your Instagram password: ")
-        self.upload_to_instagram(username, password, state.image_path, state.selected_caption)
+        password = getpass("🔐 Enter your Instagram password: ")
+        self.upload_to_instagram(username, password, state.image_path, state.captions[int(state.selected_caption)])
 
 
     def run(self, raw_caption: str) -> State:
-        initial_state = State(initial_caption=raw_caption, image_path="lebron.jpg")
+        initial_state = State(initial_caption=raw_caption, image_path="image.jpg")
         next_state = self.workflow.invoke(initial_state, config=self.thread_config)
         while "__interrupt__" in next_state:
             next_state = self.workflow.invoke(self._handle_human_input(next_state), config=self.thread_config)
@@ -243,6 +251,4 @@ if __name__ == "__main__":
 
     workflow = Workflow()
     print("AI image caption generator")
-    result = workflow.run(generate_caption("lebron.jpg"))
-    print(result.decision)
-    print(result.selected_caption)
+    result = workflow.run(generate_caption("image.jpg"))
