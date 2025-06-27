@@ -61,7 +61,7 @@ pip install -r requirements.txt
 
 * Chrome installed
 * ChromeDriver compatible with your Chrome version
-* `.env` file with any required keys for GPT-4 (e.g. OpenAI API)
+* `.env` file with any required keys for GPT-4 (Mistral here)
 
 ### 3. Run the app
 
