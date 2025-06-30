@@ -37,7 +37,7 @@ This project is an **AI-powered image captioning pipeline** that:
 
    * Upload one directly.
    * Edit a caption manually.
-   * Regenerate based on custom feedback.
+   * Regenerate captions based on custom feedback.
 4. The selected caption + image is uploaded to your **Instagram** account using **Selenium automation**.
 
 ---
